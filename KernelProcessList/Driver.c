@@ -3,8 +3,6 @@
 #include <stdlib.h>
 #include <wdf.h>
 
-DRIVER_INITIALIZE DriverEntry;
-
 typedef struct _SYSTEM_THREADS {
     LARGE_INTEGER  KernelTime;
     LARGE_INTEGER  UserTime;
@@ -57,10 +55,10 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath)
         OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE,
         NULL, NULL);
 
-    HANDLE handle;
+    HANDLE file;
     IO_STATUS_BLOCK ioStatusBlock;
 
-    ntstatus = ZwCreateFile(&handle,
+    ntstatus = ZwCreateFile(&file,
         GENERIC_WRITE,
         &objAttr, &ioStatusBlock, NULL,
         FILE_ATTRIBUTE_NORMAL,
@@ -74,34 +72,34 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath)
 
         if (ZwQuerySystemInformation(SystemProcessInformation, NULL, 0, &bufferSize) == STATUS_INFO_LENGTH_MISMATCH) {
             if (bufferSize) {
-                PVOID memory = ExAllocatePoolWithTag(PagedPool, bufferSize, 'enoN');
+                PVOID memory = ExAllocatePoolWithTag(PagedPool, bufferSize, POOL_TAG);
 
                 if (memory) {
                     ntstatus = ZwQuerySystemInformation(SystemProcessInformation, memory, bufferSize, &bufferSize);
                     if (NT_SUCCESS(ntstatus)) {
-                        PSYSTEM_PROCESSES infoP = memory;
+                        PSYSTEM_PROCESSES processEntry = memory;
 
                         do {
-                            if (infoP->ProcessName.Length) {
-                                CHAR pidString[100];
-                                ntstatus = RtlStringCbPrintfA(pidString, _countof(pidString), "%ws : %llu\n", infoP->ProcessName.Buffer, infoP->ProcessId);
+                            if (processEntry->ProcessName.Length) {
+                                CHAR string[100];
+                                ntstatus = RtlStringCbPrintfA(string, _countof(string), "%ws : %llu\n", processEntry->ProcessName.Buffer, processEntry->ProcessId);
 
                                 if (NT_SUCCESS(ntstatus)) {
                                     size_t length;
-                                    ntstatus = RtlStringCbLengthA(pidString, _countof(pidString), &length);
+                                    ntstatus = RtlStringCbLengthA(string, _countof(string), &length);
 
                                     if (NT_SUCCESS(ntstatus))
-                                        ntstatus = ZwWriteFile(handle, NULL, NULL, NULL, &ioStatusBlock, pidString, (ULONG)length, NULL, NULL);
+                                        ntstatus = ZwWriteFile(file, NULL, NULL, NULL, &ioStatusBlock, string, (ULONG)length, NULL, NULL);
                                 }
                             }
-                            infoP = (PSYSTEM_PROCESSES)((BYTE*)infoP + infoP->NextEntryDelta);
-                        } while (infoP->NextEntryDelta);
+                            processEntry = (PSYSTEM_PROCESSES)((BYTE*)processEntry + processEntry->NextEntryDelta);
+                        } while (processEntry->NextEntryDelta);
                     }
-                    ExFreePoolWithTag(memory, 'enoN');
+                    ExFreePoolWithTag(memory, POOL_TAG);
                 }
             }
         }
-        ZwClose(handle);
+        ZwClose(file);
     }
     return ntstatus;
 }
