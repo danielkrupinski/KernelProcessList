@@ -4,7 +4,9 @@ Example Windows Kernel-mode Driver which enumerates running processes.
 ## Output
 Driver writes process list to the `KernelProcessList.txt` file located in Windows directory (%SystemRoot%).
 
-Example output:
+Format: `process_name : process_id`
+
+Example:
 ```
 System : 4
 Registry : 104
