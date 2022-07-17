@@ -72,7 +72,7 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath)
 
         if (ZwQuerySystemInformation(SystemProcessInformation, NULL, 0, &bufferSize) == STATUS_INFO_LENGTH_MISMATCH) {
             if (bufferSize) {
-                PVOID memory = ExAllocatePoolWithTag(PagedPool, bufferSize, POOL_TAG);
+                PVOID memory = ExAllocatePool2(POOL_FLAG_PAGED, bufferSize, POOL_TAG);
 
                 if (memory) {
                     ntstatus = ZwQuerySystemInformation(SystemProcessInformation, memory, bufferSize, &bufferSize);
